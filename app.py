@@ -8,7 +8,6 @@ mojorepair_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '
 
 
 @app.route('/')
-@app.route('/home')
 def home():
     return send_from_directory(mojorepair_dir, 'index.html')
 
