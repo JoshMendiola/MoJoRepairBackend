@@ -12,24 +12,18 @@ def home():
     return send_from_directory(mojorepair_dir, 'index.html')
 
 
-@app.route('/about')
-def about():
-    return send_from_directory(os.path.join(mojorepair_dir, 'html'), 'about.html')
-
-
-@app.route('/services')
-def services():
-    return send_from_directory(os.path.join(mojorepair_dir, 'html'), 'services.html')
-
-
-@app.route('/login')
-def login():
-    return send_from_directory(os.path.join(mojorepair_dir, 'html'), 'login.html')
-
-
-@app.route('/register')
-def register():
-    return send_from_directory(os.path.join(mojorepair_dir, 'html'), 'register.html')
+@app.route('/<path:filename>')
+def serve_static(filename):
+    if filename.startswith('html/'):
+        return send_from_directory(mojorepair_dir, filename)
+    elif filename in ['about', 'services', 'login', 'register']:
+        return send_from_directory(os.path.join(mojorepair_dir, 'html'), f'{filename}.html')
+    else:
+        file_path = os.path.join(mojorepair_dir, filename)
+        if os.path.isfile(file_path):
+            return send_from_directory(mojorepair_dir, filename)
+        else:
+            os.abort(404)
 
 
 if __name__ == '__main__':
