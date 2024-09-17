@@ -8,18 +8,29 @@ mojorepair_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '
 
 
 @app.route('/')
-def hello_world():
-    return 'Hello World!'
-
-
 @app.route('/home')
 def home():
     return send_from_directory(mojorepair_dir, 'index.html')
 
 
-@app.route('/<path:filename>')
-def serve_static(filename):
-    return send_from_directory(mojorepair_dir, filename)
+@app.route('/about')
+def about():
+    return send_from_directory(os.path.join(mojorepair_dir, 'html'), 'about.html')
+
+
+@app.route('/services')
+def services():
+    return send_from_directory(os.path.join(mojorepair_dir, 'html'), 'services.html')
+
+
+@app.route('/login')
+def login():
+    return send_from_directory(os.path.join(mojorepair_dir, 'html'), 'login.html')
+
+
+@app.route('/register')
+def register():
+    return send_from_directory(os.path.join(mojorepair_dir, 'html'), 'register.html')
 
 
 if __name__ == '__main__':
