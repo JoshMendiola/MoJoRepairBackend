@@ -6,6 +6,8 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from datetime import timedelta
 import os
 
+from sqlalchemy import text
+
 app = Flask(__name__)
 CORS(app)
 
@@ -39,17 +41,19 @@ def login():
     password = request.form.get('password')
 
     # SQL INJECTION VULNERABILITY, wow this was harder than i thought to mess up
-    query = f"SELECT * FROM admins WHERE username = '{username}' AND password = '{password}'"
-    result = db.engine.execute(query)
-    user = result.fetchone()
+    query = text(f"SELECT * FROM admins WHERE username = '{username}' AND password = '{password}'")
+
+    with db.engine.connect() as connection:
+        result = connection.execute(query)
+        user = result.fetchone()
 
     if user:
         access_token = create_access_token(identity=user.id)
         session['logged_in'] = True
         return redirect(url_for('admin_dashboard'))
     else:
-        error = "Invalid username or password"
-        return render_template('index.html', error=error), 401
+        error = "Inval username or password"
+        return render_template('admin.html', error=error), 401
     
 
 @app.route('/protected', methods=['GET'])
