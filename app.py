@@ -32,7 +32,7 @@ class Admin(db.Model):
 def api_home():
     return jsonify({"message": "Welcome to the MoJoRepair API"})
 
-@app.route('/api/admin', methods=['POST'])
+@app.route('/admin', methods=['POST'])
 def login():
     data = request.json
 
