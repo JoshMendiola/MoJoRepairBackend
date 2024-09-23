@@ -34,10 +34,12 @@ def api_home():
 
 @app.route('/admin', methods=['POST'])
 def login():
-    data = request.json
+    # data = request.json
+    username = request.form.get('username')
+    password = request.form.get('password')
 
     # SQL INJECTION VULNERABILITY, wow this was harder than i thought to mess up
-    query = f"SELECT * FROM admins WHERE username = '{data['username']}' AND password = '{data['password']}'"
+    query = f"SELECT * FROM admins WHERE username = '{username}' AND password = '{password}'"
     result = db.engine.execute(query)
     user = result.fetchone()
 
