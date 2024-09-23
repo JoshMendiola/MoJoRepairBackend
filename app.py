@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect, url_for, render_template, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -43,9 +43,11 @@ def login():
 
     if user:
         access_token = create_access_token(identity=user.id)
-        return jsonify(access_token=access_token), 200
+        session['logged_in'] = True
+        return redirect(url_for('admin_dashboard'))
     else:
-        return jsonify({"error": "Invalid username or password"}), 401
+        error = "Invalid username or password"
+        return render_template('index.html', error=error), 401
     
 
 @app.route('/protected', methods=['GET'])
@@ -55,6 +57,13 @@ def protected():
     user = Admin.query.get(current_user_id)
     return jsonify(logged_in_as=user.email), 200
 
+@app.route('/admin_dashboard')
+def admin_dashboard():
+    if 'logged_in' in session:  # Check if the user is logged in
+        return render_template('html/admin_dashboard.html')  # Render dashboard
+    else:
+        flash("You must be logged in to access the dashboard.", "error")
+        return render_template('html/admin.html')  # Redirect to admin log in if not logged in
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
