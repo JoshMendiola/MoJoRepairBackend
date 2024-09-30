@@ -42,8 +42,6 @@ def login():
         else:
             flash("Invalid username or password", "error")
 
-    return render_template('admin.html')
-
 
 @app.route('/protected', methods=['GET'])
 @jwt_required()
@@ -51,17 +49,6 @@ def protected():
     current_user_id = get_jwt_identity()
     user = Admin.query.get(current_user_id)
     return jsonify(logged_in_as=user.email), 200
-
-
-@app.route('/admin_dashboard')
-def admin_dashboard():
-    if 'logged_in' in session and 'user_id' in session:
-        user = Admin.query.get(session['user_id'])
-        if user:
-            return render_template('admin_dashboard.html', user=user)
-
-    flash("You must be logged in to access the dashboard.", "error")
-    return redirect(url_for('login'))
 
 
 @app.route('/logout')
