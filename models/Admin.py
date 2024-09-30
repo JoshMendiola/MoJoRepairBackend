@@ -1,36 +1,12 @@
-from .db import db
+from app import db
 
 
 class Admin(db.Model):
-    __tablename__ = 'admins'
-
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    date_of_birth = db.Column(db.Date, nullable=False)
-    embarrassing_fact = db.Column(db.Text, nullable=False)
-
-    def __init__(self, username, password, email):
-        self.username = username
-        self.password = password
-        self.email = email
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    embarrassing_fact = db.Column(db.Text)
 
     def __repr__(self):
         return f'<Admin {self.username}>'
-
-    @classmethod
-    def find_by_username(cls, username):
-        return cls.query.filter_by(username=username).first()
-
-    @classmethod
-    def find_by_email(cls, email):
-        return cls.query.filter_by(email=email).first()
-
-    def save_to_db(self):
-        db.session.add(self)
-        db.session.commit()
-
-    def delete_from_db(self):
-        db.session.delete(self)
-        db.session.commit()

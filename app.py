@@ -1,25 +1,28 @@
-from flask import Flask, jsonify, request, redirect, url_for, render_template, session, flash
+from flask import Flask, jsonify, request
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta
 import os
 from flask_sqlalchemy import SQLAlchemy
-from models.Admin import Admin
 
+db = SQLAlchemy()
 app = Flask(__name__)
 CORS(app)
 
 # Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://rootdbuser:${MYSQL_PASSWORD}@mysql:3306/mojorepairdb'
+app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://rootdbuser:{os.environ.get('MYSQL_PASSWORD')}@mysql:3306/mojorepairdb"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', os.urandom(24))
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))  # for session management
 
-db = SQLAlchemy(app)
+db.init_app(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
+
+# Import models after initializing db
+from models.Admin import Admin
 
 
 @app.route('/api/')
@@ -35,7 +38,7 @@ def login():
 
     user = Admin.query.filter_by(username=username).first()
 
-    if user and password == user.password:
+    if user and password == user.password:  # In production, use bcrypt.check_password_hash()
         access_token = create_access_token(identity=user.id)
         return jsonify(access_token=access_token), 200
     else:
@@ -52,9 +55,10 @@ def protected():
 
 @app.route('/api/logout')
 def logout():
-    # JWT doesn't maintain server-side sessions, so we just return a success message
     return jsonify({"message": "Logout successful"}), 200
 
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=False, host='0.0.0.0', port=7000)
