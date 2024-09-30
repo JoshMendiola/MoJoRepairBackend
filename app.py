@@ -5,6 +5,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from datetime import timedelta
 import os
 from flask_sqlalchemy import SQLAlchemy
+from models.Admin import Admin
 
 db = SQLAlchemy()
 app = Flask(__name__)
@@ -20,9 +21,6 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))  # for s
 db.init_app(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
-
-# Import models after initializing db
-from models.Admin import Admin
 
 
 @app.route('/api/')
