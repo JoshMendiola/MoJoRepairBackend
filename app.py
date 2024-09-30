@@ -4,19 +4,20 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta
 import os
-from models import db, Admin
+from flask_sqlalchemy import SQLAlchemy
+from models.Admin import Admin
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://username:password@localhost/mojorepair_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://rootdbuser:${MYSQL_PASSWORD}@mysql:3306/mojorepairdb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = os.urandom(24)
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', os.urandom(24))
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
-app.config['SECRET_KEY'] = os.urandom(24)  # for session management
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))  # for session management
 
-db.init_app(app)
+db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
@@ -26,21 +27,19 @@ def api_home():
     return jsonify({"message": "Welcome to the MoJoRepair API"})
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
 
-        user = Admin.query.filter_by(username=username).first()
+    user = Admin.query.filter_by(username=username).first()
 
-        if user and bcrypt.check_password_hash(user.password, password):
-            access_token = create_access_token(identity=user.id)
-            session['logged_in'] = True
-            session['user_id'] = user.id
-            return redirect(url_for('admin_dashboard'))
-        else:
-            flash("Invalid username or password", "error")
+    if user and password == user.password:
+        access_token = create_access_token(identity=user.id)
+        return jsonify(access_token=access_token), 200
+    else:
+        return jsonify({"message": "Invalid username or password"}), 401
 
 
 @app.route('/protected', methods=['GET'])
@@ -53,9 +52,8 @@ def protected():
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    flash("You have been logged out.", "info")
-    return redirect(url_for('login'))
+    # JWT doesn't maintain server-side sessions, so we just return a success message
+    return jsonify({"message": "Logout successful"}), 200
 
 
 if __name__ == '__main__':
