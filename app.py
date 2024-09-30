@@ -26,7 +26,7 @@ def api_home():
     return jsonify({"message": "Welcome to the MoJoRepair API"})
 
 
-@app.route('/admin', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form.get('username')
