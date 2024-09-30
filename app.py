@@ -22,12 +22,12 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 
-@app.route('/')
+@app.route('/api/')
 def api_home():
     return jsonify({"message": "Welcome to the MoJoRepair API"})
 
 
-@app.route('/login', methods=['POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get('username')
@@ -42,7 +42,7 @@ def login():
         return jsonify({"message": "Invalid username or password"}), 401
 
 
-@app.route('/protected', methods=['GET'])
+@app.route('/api/protected', methods=['GET'])
 @jwt_required()
 def protected():
     current_user_id = get_jwt_identity()
@@ -50,7 +50,7 @@ def protected():
     return jsonify(logged_in_as=user.email), 200
 
 
-@app.route('/logout')
+@app.route('/api/logout')
 def logout():
     # JWT doesn't maintain server-side sessions, so we just return a success message
     return jsonify({"message": "Logout successful"}), 200
