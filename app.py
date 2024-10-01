@@ -27,6 +27,9 @@ def create_app():
     bcrypt.init_app(app)
     jwt.init_app(app)
 
+    with app.app_context():
+        db.create_all()
+
     # Register routes
     @app.route('/api/')
     def api_home():
@@ -57,12 +60,12 @@ def create_app():
     def logout():
         return jsonify({"message": "Logout successful"}), 200
 
+
+
     return app
 
 
-def create_db(app):
-    with app.app_context():
-        db.create_all()
+
 
 
 def connect_to_database(retries=5, delay=5):
@@ -80,5 +83,4 @@ def connect_to_database(retries=5, delay=5):
 app = create_app()
 
 if __name__ == '__main__':
-    create_db(app)
     app.run(debug=False, host='0.0.0.0', port=7000)
