@@ -18,6 +18,7 @@ app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', os.urandom(24))
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))  # for session management
 
+db.init_app(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
@@ -56,7 +57,6 @@ def logout():
 
 
 if __name__ == '__main__':
-    db.init_app(app)
     with app.app_context():
         db.create_all()
     app.run(debug=False, host='0.0.0.0', port=7000)
