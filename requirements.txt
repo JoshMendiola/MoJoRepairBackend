@@ -1,5 +1,6 @@
 flask~=3.0.3
-flask-sqlalchemy
+flask_sqlalchemy
 flask_bcrypt
 flask_cors
 flask_jwt_extended
+mysqlclient
