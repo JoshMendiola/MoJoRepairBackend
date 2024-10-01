@@ -2,15 +2,13 @@ from flask import Flask, jsonify, request
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_sqlalchemy import SQLAlchemy
 from datetime import timedelta
 import os
-from flask_sqlalchemy import SQLAlchemy
-from models.Admin import Admin
 import pymysql
 
 pymysql.install_as_MySQLdb()
 
-db = SQLAlchemy()
 app = Flask(__name__)
 CORS(app)
 
@@ -19,11 +17,15 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', os.urandom(24))
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))  # for session management
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))
 
-db.init_app(app)
+# Initialize extensions
+db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
+
+# Import models after db initialization
+from models.Admin import Admin
 
 
 @app.route('/api/')
@@ -58,9 +60,11 @@ def protected():
 def logout():
     return jsonify({"message": "Logout successful"}), 200
 
+
 def create_db():
     with app.app_context():
         db.create_all()
+
 
 if __name__ == '__main__':
     create_db()
