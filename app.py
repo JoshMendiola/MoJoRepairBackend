@@ -41,7 +41,7 @@ def login():
 
     user = Admin.query.filter_by(username=username).first()
 
-    if user and password == user.password:  # In production, use bcrypt.check_password_hash()
+    if user and password == user.password:
         access_token = create_access_token(identity=user.id)
         return jsonify(access_token=access_token), 200
     else:
