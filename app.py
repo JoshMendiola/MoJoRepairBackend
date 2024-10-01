@@ -77,7 +77,8 @@ def connect_to_database(retries=5, delay=5):
     raise Exception("Failed to connect to the database after multiple attempts")
 
 
+app = create_app()
+
 if __name__ == '__main__':
-    app = create_app()
     create_db(app)
     app.run(debug=False, host='0.0.0.0', port=7000)
