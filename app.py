@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from datetime import timedelta
+from datetime import timedelta, time
 import os
 import pymysql
 
@@ -63,6 +63,18 @@ def create_app():
 def create_db(app):
     with app.app_context():
         db.create_all()
+
+
+def connect_to_database(retries=5, delay=5):
+    for attempt in range(retries):
+        try:
+            db.create_all()
+            print("Successfully connected to the database!")
+            return
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed. Retrying in {delay} seconds...")
+            time.sleep(delay)
+    raise Exception("Failed to connect to the database after multiple attempts")
 
 
 if __name__ == '__main__':
