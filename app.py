@@ -16,7 +16,7 @@ def create_app():
     CORS(app)
 
     # Configuration
-    app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://rootdbuser:${MYSQL_PASSWORD}@mysql:3306/mojorepairdb"
+    app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://rootdbuser:F4cW8yJzE6vU9dA7@mysql:3306/mojorepairdb"
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', os.urandom(24))
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
