@@ -6,6 +6,9 @@ from datetime import timedelta
 import os
 from flask_sqlalchemy import SQLAlchemy
 from models.Admin import Admin
+import pymysql
+
+pymysql.install_as_MySQLdb()
 
 db = SQLAlchemy()
 app = Flask(__name__)
