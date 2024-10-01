@@ -2,9 +2,8 @@
 set -e
 
 host="$1"
-shift
-port="$1"
-shift
+port="$2"
+shift 2
 cmd="$@"
 
 until nc -z $host $port; do
