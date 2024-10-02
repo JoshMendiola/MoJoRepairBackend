@@ -71,12 +71,12 @@ def create_app():
 
             app.logger.debug(f"Query returned {len(result)} results")
             for row in result:
-                app.logger.debug(f"Found user: {row['username']}")
+                app.logger.debug(f"Found user: {row[1]}")  # Assuming username is the second column
 
             if result:
                 user = result[0]  # Get the first user from the results
-                access_token = create_access_token(identity=user['id'])
-                app.logger.debug(f"Login successful for user: {user['username']}")
+                access_token = create_access_token(identity=user[0])  # Assuming id is the first column
+                app.logger.debug(f"Login successful for user: {user[1]}")  # Assuming username is the second column
                 return jsonify(access_token=access_token), 200
             else:
                 app.logger.debug("Login failed")
