@@ -47,6 +47,8 @@ def create_app():
         app.logger.debug("API home route accessed")
         return jsonify({"message": "Welcome to the MoJoRepair API"})
 
+    from sqlalchemy import text
+
     @app.route('/api/login', methods=['POST'])
     def login():
         app.logger.debug("Login route accessed")
@@ -58,7 +60,9 @@ def create_app():
 
         # Vulnerable SQL query
         query = f"SELECT * FROM admin WHERE username = '{username}' AND password = '{password}'"
-        result = db.engine.execute(query).fetchone()
+
+        with db.engine.connect() as connection:
+            result = connection.execute(text(query)).fetchone()
 
         if result:
             user = Admin(id=result[0], username=result[1], email=result[2], password=result[3])
