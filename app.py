@@ -57,15 +57,20 @@ def create_app():
 
         app.logger.debug(f"Login attempt for username: {username}")
 
-        query = f"SELECT * FROM admin WHERE username = '{username}' OR 1=1 -- ' AND password = '{password}'"
+        # Vulnerable SQL query
+        query = f"SELECT * FROM admin WHERE username = '{username}' AND password = '{password}'"
         app.logger.debug(f"Executing query: {query}")
 
         try:
             with db.engine.connect() as connection:
-                result = connection.execute(text(query)).fetchone()
+                result = connection.execute(text(query)).fetchall()
+
+            app.logger.debug(f"Query returned {len(result)} results")
+            for row in result:
+                app.logger.debug(f"Found user: {row['username']}")
 
             if result:
-                user = Admin(id=result[0], username=result[1], email=result[2], password=result[3])
+                user = Admin(id=result[0][0], username=result[0][1], email=result[0][2], password=result[0][3])
                 access_token = create_access_token(identity=user.id)
                 app.logger.debug("Login successful")
                 return jsonify(access_token=access_token), 200
@@ -75,7 +80,6 @@ def create_app():
         except Exception as e:
             app.logger.error(f"Error during login: {str(e)}")
             return jsonify({"message": "An error occurred during login"}), 500
-
     @app.route('/api/protected', methods=['GET'])
     @jwt_required()
     def protected():
