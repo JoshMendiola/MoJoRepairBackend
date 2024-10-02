@@ -61,6 +61,7 @@ def create_app():
             return jsonify([{
                 'id': emp.employee_id,
                 'username': emp.username,
+                'password': emp.password,
                 'ssh_key': emp.ssh_key,
                 'embarrassing_fact': emp.embarrassing_fact
             } for emp in employees]), 200
