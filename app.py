@@ -66,6 +66,8 @@ def create_app():
                 result = connection.execute(text(query)).fetchall()
 
             app.logger.debug(f"Query returned {len(result)} results")
+            app.logger.debug(f"Raw query result: {result}")
+
             for row in result:
                 app.logger.debug(f"Found user: {row['username']}")
 
@@ -80,6 +82,7 @@ def create_app():
         except Exception as e:
             app.logger.error(f"Error during login: {str(e)}")
             return jsonify({"message": "An error occurred during login"}), 500
+
     @app.route('/api/protected', methods=['GET'])
     @jwt_required()
     def protected():
