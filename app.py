@@ -13,6 +13,7 @@ from models.Admin import Admin
 
 pymysql.install_as_MySQLdb()
 
+
 def create_app():
     app = Flask(__name__)
     CORS(app)
@@ -55,16 +56,12 @@ def create_app():
 
         app.logger.debug(f"Login attempt for username: {username}")
 
-        user = Admin.query.filter_by(username=username).first()
+        # Vulnerable SQL query
+        query = f"SELECT * FROM admin WHERE username = '{username}' AND password = '{password}'"
+        result = db.engine.execute(query).fetchone()
 
-        if user:
-            app.logger.debug(f"User found: {user.username}")
-            app.logger.debug(f"Stored password: {user.password}")
-            app.logger.debug(f"Provided password: {password}")
-        else:
-            app.logger.debug("User not found")
-
-        if user and password == user.password:
+        if result:
+            user = Admin(id=result[0], username=result[1], email=result[2], password=result[3])
             access_token = create_access_token(identity=user.id)
             app.logger.debug("Login successful")
             return jsonify(access_token=access_token), 200
@@ -87,6 +84,7 @@ def create_app():
 
     return app
 
+
 def connect_to_database(retries=5, delay=5):
     for attempt in range(retries):
         try:
@@ -97,6 +95,7 @@ def connect_to_database(retries=5, delay=5):
             print(f"Attempt {attempt + 1} failed. Retrying in {delay} seconds...")
             time.sleep(delay)
     raise Exception("Failed to connect to the database after multiple attempts")
+
 
 app = create_app()
 
