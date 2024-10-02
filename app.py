@@ -62,7 +62,7 @@ def create_app():
         app.logger.debug(f"Login attempt for username: {username}")
 
         # Vulnerable SQL query
-        query = f"SELECT * FROM admin WHERE username = '{username}' AND password = '{password}'"
+        query = f"SELECT * FROM admin WHERE username = '{username}' AND password = '{password}';"
         app.logger.debug(f"Executing query: {query}")
 
         try:
