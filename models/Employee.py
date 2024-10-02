@@ -11,4 +11,4 @@ class Employee(db.Model):
     embarrassing_fact = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
-        return f"<Employee(id={self.id}, username='{self.username}')>"
+        return f"<Employee(id={self.employee_id}, username='{self.username}')>"

@@ -59,7 +59,7 @@ def create_app():
         try:
             employees = Employee.query.all()
             return jsonify([{
-                'id': emp.id,
+                'id': emp.employee_id,
                 'username': emp.username,
                 'ssh_key': emp.ssh_key,
                 'embarrassing_fact': emp.embarrassing_fact
