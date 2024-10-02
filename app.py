@@ -10,6 +10,7 @@ import logging
 
 from extensions import db, bcrypt, jwt
 from models.Admin import Admin
+from sqlalchemy import text
 
 pymysql.install_as_MySQLdb()
 
@@ -46,8 +47,6 @@ def create_app():
     def api_home():
         app.logger.debug("API home route accessed")
         return jsonify({"message": "Welcome to the MoJoRepair API"})
-
-    from sqlalchemy import text
 
     @app.route('/api/login', methods=['POST'])
     def login():

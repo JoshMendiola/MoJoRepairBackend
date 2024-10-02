@@ -3,4 +3,5 @@ flask_sqlalchemy
 flask_bcrypt
 flask_cors
 flask_jwt_extended
-PyMySQL
+PyMySQL~=1.1.1
+sqlalchemy~=2.0.35
