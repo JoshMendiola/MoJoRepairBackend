@@ -10,7 +10,7 @@ import logging
 
 from extensions import db, bcrypt, jwt
 from models.Admin import Admin
-from sqlalchemy import text
+from models.Employee import Employee
 
 pymysql.install_as_MySQLdb()
 
@@ -51,6 +51,22 @@ def create_app():
     from flask import jsonify, request
     from flask_jwt_extended import create_access_token
     from sqlalchemy import text
+
+    @app.route('/api/employees', methods=['GET'])
+    @jwt_required()
+    def get_all_employees():
+        app.logger.debug("Get all employees route accessed")
+        try:
+            employees = Employee.query.all()
+            return jsonify([{
+                'id': emp.id,
+                'username': emp.username,
+                'ssh_key': emp.ssh_key,
+                'embarrassing_fact': emp.embarrassing_fact
+            } for emp in employees]), 200
+        except Exception as e:
+            app.logger.error(f"Error fetching employees: {str(e)}")
+            return jsonify({"message": "An error occurred while fetching employees"}), 500
 
     @app.route('/api/login', methods=['POST'])
     def login():
