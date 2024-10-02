@@ -59,18 +59,23 @@ def create_app():
 
         # Vulnerable SQL query
         query = f"SELECT * FROM admin WHERE username = '{username}' AND password = '{password}'"
+        app.logger.debug(f"Executing query: {query}")
 
-        with db.engine.connect() as connection:
-            result = connection.execute(text(query)).fetchone()
+        try:
+            with db.engine.connect() as connection:
+                result = connection.execute(text(query)).fetchone()
 
-        if result:
-            user = Admin(id=result[0], username=result[1], email=result[2], password=result[3])
-            access_token = create_access_token(identity=user.id)
-            app.logger.debug("Login successful")
-            return jsonify(access_token=access_token), 200
-        else:
-            app.logger.debug("Login failed")
-            return jsonify({"message": "Invalid username or password"}), 401
+            if result:
+                user = Admin(id=result[0], username=result[1], email=result[2], password=result[3])
+                access_token = create_access_token(identity=user.id)
+                app.logger.debug("Login successful")
+                return jsonify(access_token=access_token), 200
+            else:
+                app.logger.debug("Login failed")
+                return jsonify({"message": "Invalid username or password"}), 401
+        except Exception as e:
+            app.logger.error(f"Error during login: {str(e)}")
+            return jsonify({"message": "An error occurred during login"}), 500
 
     @app.route('/api/protected', methods=['GET'])
     @jwt_required()
