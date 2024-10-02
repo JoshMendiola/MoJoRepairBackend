@@ -48,6 +48,10 @@ def create_app():
         app.logger.debug("API home route accessed")
         return jsonify({"message": "Welcome to the MoJoRepair API"})
 
+    from flask import jsonify, request
+    from flask_jwt_extended import create_access_token
+    from sqlalchemy import text
+
     @app.route('/api/login', methods=['POST'])
     def login():
         app.logger.debug("Login route accessed")
@@ -57,25 +61,26 @@ def create_app():
 
         app.logger.debug(f"Login attempt for username: {username}")
 
-        # Vulnerable SQL query
-        query = f"SELECT * FROM admin WHERE username = '{username}' AND password = '{password}'"
-        app.logger.debug(f"Executing query: {query}")
+        query = "SELECT * FROM admin WHERE username = :username AND password = :password"
+        app.logger.debug(f"Query template: {query}")
 
         try:
             with db.engine.connect() as connection:
-                result = connection.execute(text(query)).fetchall()
+                result = connection.execute(
+                    text(query),
+                    {"username": username, "password": password}
+                ).fetchall()
 
             app.logger.debug(f"Query returned {len(result)} results")
-            app.logger.debug(f"Raw query result: {result}")
+            app.logger.debug(f"Query results: {[dict(row) for row in result]}")
 
             if result:
                 user = result[0]
-                app.logger.debug(f"Found user: {user['username']}, Email: {user['email']}")
                 access_token = create_access_token(identity=user['id'])
-                app.logger.debug("Login successful")
+                app.logger.debug(f"Login successful for user: {user['username']}")
                 return jsonify(access_token=access_token), 200
             else:
-                app.logger.debug("Login failed")
+                app.logger.debug("Login failed: No matching user found")
                 return jsonify({"message": "Invalid username or password"}), 401
         except Exception as e:
             app.logger.error(f"Error during login: {str(e)}")
