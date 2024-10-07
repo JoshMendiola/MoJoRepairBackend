@@ -1,6 +1,7 @@
 import time
 
 from flask import Flask, jsonify, request
+from flask_bcrypt import check_password_hash
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta
@@ -78,22 +79,12 @@ def create_app():
 
         app.logger.debug(f"Login attempt for username: {username}")
 
-        # Vulnerable SQL query - modified to be more susceptible to injection
-        query = f"SELECT * FROM admin WHERE username = '{username}' OR password = '{password}';"
-        app.logger.debug(f"Executing query: {query}")
-
         try:
-            with db.engine.connect() as connection:
-                result = connection.execute(text(query)).fetchall()
+            user = Admin.query.filter_by(username=username).first()
 
-            app.logger.debug(f"Query returned {len(result)} results")
-            for row in result:
-                app.logger.debug(f"Found user: {row[1]}")  # Assuming username is the second column
-
-            if result:
-                user = result[0]  # Get the first user from the results
-                access_token = create_access_token(identity=user[0])  # Assuming id is the first column
-                app.logger.debug(f"Login successful for user: {user[1]}")  # Assuming username is the second column
+            if user and check_password_hash(user.password, password):
+                access_token = create_access_token(identity=user.id)
+                app.logger.debug(f"Login successful for user: {user.username}")
                 return jsonify(access_token=access_token), 200
             else:
                 app.logger.debug("Login failed")
