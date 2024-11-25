@@ -4,7 +4,7 @@ import time
 from flask import Flask, jsonify, request, make_response
 from flask_bcrypt import check_password_hash
 from flask_cors import CORS
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, set_access_cookies
 from datetime import timedelta
 import pymysql
 import logging
@@ -48,7 +48,8 @@ def create_app():
             "methods": ["GET", "POST", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],  # Add Authorization
             "expose_headers": ["Set-Cookie"],
-            "supports_credentials": True
+            "supports_credentials": True,
+            "allow_credentials": True
         }
     })
 
@@ -69,6 +70,7 @@ def create_app():
     app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # For development
     app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
     app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
+    app.config['JWT_ACCESS_COOKIE_NAME'] = 'authToken'
 
     # Initialize extensions
     db.init_app(app)
@@ -109,20 +111,11 @@ def create_app():
                     "username": user.username
                 }))
                 
-                # Set cookie with more specific parameters
-                response.set_cookie(
-                    'authToken',
-                    value=access_token,
-                    httponly=True,
-                    secure=False,  # Set to True in production
-                    samesite='Lax',
-                    path='/',
-                    domain=None,  # Let browser set the domain
-                    max_age=86400  # 24 hours
-                )
+                # Use Flask-JWT-Extended's function to set the cookie
+                set_access_cookies(response, access_token)
                 
                 app.logger.debug(f"Login successful for user: {user.username}")
-                app.logger.debug(f"Setting cookie: {access_token[:10]}...")  # Log first 10 chars of token
+                app.logger.debug(f"Setting cookie: {access_token[:10]}...")
                 
                 return response
                 
@@ -207,6 +200,8 @@ def create_app():
     def check_auth():
         """Endpoint to verify JWT token validity"""
         try:
+            app.logger.debug(f"Cookies received: {request.cookies}")  # Log all cookies
+            
             current_user_id = get_jwt_identity()
             app.logger.debug(f"JWT identity found: {current_user_id}")
             
