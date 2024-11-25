@@ -133,18 +133,20 @@ def create_app():
             user = SecureAdmin.query.filter_by(username=username).first()
             
             if user and check_password_hash(user.password, password):
-                access_token = create_access_token(identity=user.id)
-                    
+                # Convert user.id to string for JWT
+                access_token = create_access_token(identity=str(user.id))
+                
                 response = make_response(jsonify({
                     "message": "Login successful",
                     "username": user.username
                 }))
                 
-                # Use Flask-JWT-Extended's function to set the cookie
+                # Set cookie with more specific parameters
                 set_access_cookies(response, access_token)
                 
                 app.logger.debug(f"Login successful for user: {user.username}")
                 app.logger.debug(f"Setting cookie: {access_token[:10]}...")
+                app.logger.debug(f"User ID (identity): {user.id}")
                 
                 return response
                 
@@ -229,12 +231,13 @@ def create_app():
     def check_auth():
         """Endpoint to verify JWT token validity"""
         try:
-            app.logger.debug(f"Cookies received: {request.cookies}")  # Log all cookies
+            app.logger.debug(f"Cookies received: {request.cookies}")
             
             current_user_id = get_jwt_identity()
             app.logger.debug(f"JWT identity found: {current_user_id}")
             
-            user = SecureAdmin.query.get(current_user_id)
+            # Convert string ID back to integer for database query
+            user = SecureAdmin.query.get(int(current_user_id))
             app.logger.debug(f"User found in DB: {user is not None}")
             
             if user:
