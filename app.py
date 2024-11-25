@@ -44,9 +44,9 @@ def create_app():
     app = Flask(__name__)
     CORS(app, supports_credentials=True, resources={
         r"/api/*": {
-            "origins": ["http://147.182.176.235"],  # Remove the trailing slash
+            "origins": ["http://147.182.176.235"],
             "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],  # Add Authorization
+            "allow_headers": ["Content-Type", "Authorization", "Cookie"],  # Added Cookie
             "expose_headers": ["Set-Cookie"],
             "supports_credentials": True,
             "allow_credentials": True
@@ -64,18 +64,47 @@ def create_app():
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+    
+    # JWT Configuration
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # For development
+    app.config['JWT_ACCESS_COOKIE_NAME'] = 'authToken'
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = False
     app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
     app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
-    app.config['JWT_ACCESS_COOKIE_NAME'] = 'authToken'
+    app.config['JWT_COOKIE_SECURE'] = False
+    app.config['JWT_ERROR_MESSAGE_KEY'] = 'message'
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
 
     # Initialize extensions
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
+
+    # JWT error handlers
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error):
+        app.logger.error(f"Invalid token error: {error}")
+        return jsonify({
+            'message': 'Invalid token',
+            'error': str(error)
+        }), 401
+
+    @jwt.unauthorized_loader
+    def unauthorized_callback(error):
+        app.logger.error(f"Unauthorized error: {error}")
+        return jsonify({
+            'message': 'No token provided',
+            'error': str(error)
+        }), 401
+
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_data):
+        app.logger.error("Token has expired")
+        return jsonify({
+            'message': 'Token has expired',
+            'error': 'token_expired'
+        }), 401
 
     with app.app_context():
         try:
@@ -225,6 +254,12 @@ def create_app():
                 "authenticated": False,
                 "error": str(e)
             }), 401
+        
+    @app.after_request
+    def after_request(response):
+        app.logger.debug(f"Response Headers: {dict(response.headers)}")
+        app.logger.debug(f"Response Status: {response.status}")
+        return response
 
     return app
 
