@@ -201,6 +201,22 @@ def create_app():
         except Exception as e:
             app.logger.error(f"Error fetching SQL demo employees: {str(e)}")
             return jsonify({"message": "An error occurred"}), 500
+        
+    @app.route('/api/check-auth', methods=['GET'])
+    @jwt_required()
+    def check_auth():
+        """Endpoint to verify JWT token validity"""
+        try:
+            current_user_id = get_jwt_identity()
+            user = SecureAdmin.query.get(current_user_id)
+            if user:
+                app.logger.debug(f"Auth check successful for user: {user.username}")
+                return jsonify({"authenticated": True}), 200
+            app.logger.debug("Auth check failed: user not found")
+            return jsonify({"authenticated": False}), 401
+        except Exception as e:
+            app.logger.error(f"Error checking auth: {str(e)}")
+            return jsonify({"authenticated": False}), 401
 
     return app
 
