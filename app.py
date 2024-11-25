@@ -97,33 +97,37 @@ def create_app():
         app.logger.debug(f"Login attempt for username: {username}")
 
         try:
-            user = Admin.query.filter_by(username=username).first()
+            user = SecureAdmin.query.filter_by(username=username).first()
+            app.logger.debug(f"Found user: {user is not None}")
+            
+            if user:
+                # Add debug logs for password verification
+                password_matches = check_password_hash(user.password, password)
+                app.logger.debug(f"Password hash in DB: {user.password}")
+                app.logger.debug(f"Password matches: {password_matches}")
 
-            if user and check_password_hash(user.password, password):
-                access_token = create_access_token(identity=user.id)
-                
-                # Create response with cookie
-                response = make_response(jsonify({"message": "Login successful"}), 200)
-                
-                # Set cookie with specific attributes
-                response.set_cookie(
-                    'authToken',
-                    access_token,
-                    httponly=True,
-                    secure=False,  # Set to False for development
-                    samesite='Lax',  # Changed from Strict for development
-                    path='/',  # Ensure cookie is sent for all paths
-                    max_age=86400  # 24 hours
-                )
-                
-                app.logger.debug(f"Login successful for user: {user.username}")
-                app.logger.debug(f"Setting cookie: authToken={access_token}")
-                app.logger.debug(f"Response headers: {response.headers}")
-                
-                return response
+                if password_matches:
+                    access_token = create_access_token(identity=user.id)
+                    
+                    response = make_response(jsonify({"message": "Login successful"}), 200)
+                    response.set_cookie(
+                        'authToken',
+                        access_token,
+                        httponly=True,
+                        secure=False,  # Set to False for development
+                        samesite='Lax',
+                        path='/',
+                        max_age=86400
+                    )
+                    
+                    app.logger.debug(f"Login successful for user: {user.username}")
+                    return response
+                else:
+                    app.logger.debug("Password verification failed")
             else:
-                app.logger.debug("Login failed")
-                return jsonify({"message": "Invalid username or password"}), 401
+                app.logger.debug("User not found")
+                
+            return jsonify({"message": "Invalid username or password"}), 401
         except Exception as e:
             app.logger.error(f"Error during login: {str(e)}")
             return jsonify({"message": "An error occurred during login"}), 500
