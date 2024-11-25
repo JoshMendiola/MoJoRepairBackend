@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from extensions import db, bcrypt, jwt
 from models.Admin import Admin, SecureAdmin
+from models.Employee import Employee
 
 pymysql.install_as_MySQLdb()
 
