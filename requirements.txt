@@ -5,3 +5,4 @@ flask_cors
 flask_jwt_extended
 PyMySQL~=1.1.1
 sqlalchemy~=2.0.35
+python-dotenv==1.0.0
