@@ -43,14 +43,14 @@ def create_secure_admin(app):
 def create_app():
     app = Flask(__name__)
     CORS(app, supports_credentials=True, resources={
-    r"/api/*": {
-        "origins": ["http://147.182.176.235/"],  # Add your frontend URL
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"],
-        "expose_headers": ["Set-Cookie"],
-        "supports_credentials": True
-    }
-})
+        r"/api/*": {
+            "origins": ["http://147.182.176.235"],  # Remove the trailing slash
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],  # Add Authorization
+            "expose_headers": ["Set-Cookie"],
+            "supports_credentials": True
+        }
+    })
 
     # Set up logging
     logging.basicConfig(level=logging.DEBUG)
@@ -65,6 +65,10 @@ def create_app():
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+    app.config['JWT_TOKEN_LOCATION'] = ['cookies']
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # For development
+    app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
+    app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 
     # Initialize extensions
     db.init_app(app)
@@ -94,43 +98,39 @@ def create_app():
         username = data.get('username')
         password = data.get('password')
 
-        app.logger.debug(f"Login attempt for username: {username}")
-
         try:
             user = SecureAdmin.query.filter_by(username=username).first()
-            app.logger.debug(f"Found user: {user is not None}")
             
-            if user:
-                # Add debug logs for password verification
-                password_matches = check_password_hash(user.password, password)
-                app.logger.debug(f"Password hash in DB: {user.password}")
-                app.logger.debug(f"Password matches: {password_matches}")
-
-                if password_matches:
-                    access_token = create_access_token(identity=user.id)
+            if user and check_password_hash(user.password, password):
+                access_token = create_access_token(identity=user.id)
                     
-                    response = make_response(jsonify({"message": "Login successful"}), 200)
-                    response.set_cookie(
-                        'authToken',
-                        access_token,
-                        httponly=True,
-                        secure=False,  # Set to False for development
-                        samesite='Lax',
-                        path='/',
-                        max_age=86400
-                    )
-                    
-                    app.logger.debug(f"Login successful for user: {user.username}")
-                    return response
-                else:
-                    app.logger.debug("Password verification failed")
-            else:
-                app.logger.debug("User not found")
+                response = make_response(jsonify({
+                    "message": "Login successful",
+                    "username": user.username
+                }))
                 
-            return jsonify({"message": "Invalid username or password"}), 401
+                # Set cookie with more specific parameters
+                response.set_cookie(
+                    'authToken',
+                    value=access_token,
+                    httponly=True,
+                    secure=False,  # Set to True in production
+                    samesite='Lax',
+                    path='/',
+                    domain=None,  # Let browser set the domain
+                    max_age=86400  # 24 hours
+                )
+                
+                app.logger.debug(f"Login successful for user: {user.username}")
+                app.logger.debug(f"Setting cookie: {access_token[:10]}...")  # Log first 10 chars of token
+                
+                return response
+                
+            return jsonify({"message": "Invalid credentials"}), 401
+            
         except Exception as e:
-            app.logger.error(f"Error during login: {str(e)}")
-            return jsonify({"message": "An error occurred during login"}), 500
+            app.logger.error(f"Login error: {str(e)}")
+            return jsonify({"message": "Login failed"}), 500
 
     @app.route('/api/employees', methods=['GET'])
     @jwt_required()
@@ -208,15 +208,28 @@ def create_app():
         """Endpoint to verify JWT token validity"""
         try:
             current_user_id = get_jwt_identity()
+            app.logger.debug(f"JWT identity found: {current_user_id}")
+            
             user = SecureAdmin.query.get(current_user_id)
+            app.logger.debug(f"User found in DB: {user is not None}")
+            
             if user:
                 app.logger.debug(f"Auth check successful for user: {user.username}")
-                return jsonify({"authenticated": True}), 200
+                return jsonify({
+                    "authenticated": True,
+                    "username": user.username
+                }), 200
+                
             app.logger.debug("Auth check failed: user not found")
             return jsonify({"authenticated": False}), 401
+            
         except Exception as e:
             app.logger.error(f"Error checking auth: {str(e)}")
-            return jsonify({"authenticated": False}), 401
+            app.logger.error(f"Request cookies: {request.cookies}")
+            return jsonify({
+                "authenticated": False,
+                "error": str(e)
+            }), 401
 
     return app
 
