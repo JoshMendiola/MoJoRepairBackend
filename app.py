@@ -89,7 +89,7 @@ def create_app():
         app.logger.debug(f"Login attempt for username: {username}")
 
         try:
-            user = Admin.query.filter_by(username=username).first()
+            user = SecureAdmin.query.filter_by(username=username).first()
 
             if user and check_password_hash(user.password, password):
                 access_token = create_access_token(identity=user.id)
@@ -152,7 +152,7 @@ def create_app():
 
         try:
             # Intentionally vulnerable SQL query
-            query = f"SELECT * FROM employee WHERE username='{username}' AND password='{password}'"
+            query = f"SELECT * FROM admin WHERE username='{username}' AND password='{password}'"
             result = db.session.execute(text(query)).fetchone()
             
             if result:
