@@ -42,7 +42,15 @@ def create_secure_admin(app):
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, supports_credentials=True)
+    CORS(app, supports_credentials=True, resources={
+    r"/api/*": {
+        "origins": ["http://147.182.176.235/"],  # Add your frontend URL
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"],
+        "expose_headers": ["Set-Cookie"],
+        "supports_credentials": True
+    }
+})
 
     # Set up logging
     logging.basicConfig(level=logging.DEBUG)
@@ -89,22 +97,29 @@ def create_app():
         app.logger.debug(f"Login attempt for username: {username}")
 
         try:
-            user = SecureAdmin.query.filter_by(username=username).first()
+            user = Admin.query.filter_by(username=username).first()
 
             if user and check_password_hash(user.password, password):
                 access_token = create_access_token(identity=user.id)
                 
-                # Create response with HTTP-only cookie
+                # Create response with cookie
                 response = make_response(jsonify({"message": "Login successful"}), 200)
+                
+                # Set cookie with specific attributes
                 response.set_cookie(
                     'authToken',
                     access_token,
                     httponly=True,
-                    secure=True,  # Remove for HTTP development
-                    samesite='Strict',
+                    secure=False,  # Set to False for development
+                    samesite='Lax',  # Changed from Strict for development
+                    path='/',  # Ensure cookie is sent for all paths
                     max_age=86400  # 24 hours
                 )
+                
                 app.logger.debug(f"Login successful for user: {user.username}")
+                app.logger.debug(f"Setting cookie: authToken={access_token}")
+                app.logger.debug(f"Response headers: {response.headers}")
+                
                 return response
             else:
                 app.logger.debug("Login failed")
