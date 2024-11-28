@@ -11,12 +11,13 @@ import logging
 from sqlalchemy import text
 
 from extensions import db, bcrypt, jwt
-from models.Admin import Admin, SecureAdmin
+from models.Admin import SecureAdmin, create_default_admin
 from models.Employee import Employee
 
 pymysql.install_as_MySQLdb()
 
 load_dotenv()
+
 
 def create_secure_admin(app):
     """Create the admin for the secure dashboard using env variables"""
@@ -39,6 +40,7 @@ def create_secure_admin(app):
             except Exception as e:
                 print(f"Error creating secure admin: {e}")
                 db.session.rollback()
+
 
 def create_app():
     app = Flask(__name__)
@@ -65,7 +67,7 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-    
+
     # JWT Configuration
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
     app.config['JWT_ACCESS_COOKIE_NAME'] = 'authToken'
@@ -110,6 +112,7 @@ def create_app():
         try:
             db.create_all()
             create_secure_admin(app)
+            create_default_admin(app)
             app.logger.info("Database tables created and secure admin checked/created successfully!")
         except Exception as e:
             app.logger.error(f"Error during setup: {e}")
@@ -131,27 +134,27 @@ def create_app():
 
         try:
             user = SecureAdmin.query.filter_by(username=username).first()
-            
+
             if user and check_password_hash(user.password, password):
                 # Convert user.id to string for JWT
                 access_token = create_access_token(identity=str(user.id))
-                
+
                 response = make_response(jsonify({
                     "message": "Login successful",
                     "username": user.username
                 }))
-                
+
                 # Set cookie with more specific parameters
                 set_access_cookies(response, access_token)
-                
+
                 app.logger.debug(f"Login successful for user: {user.username}")
                 app.logger.debug(f"Setting cookie: {access_token[:10]}...")
                 app.logger.debug(f"User ID (identity): {user.id}")
-                
+
                 return response
-                
+
             return jsonify({"message": "Invalid credentials"}), 401
-            
+
         except Exception as e:
             app.logger.error(f"Login error: {str(e)}")
             return jsonify({"message": "Login failed"}), 500
@@ -197,59 +200,69 @@ def create_app():
             # Intentionally vulnerable SQL query
             query = f"SELECT * FROM admin WHERE username='{username}' AND password='{password}'"
             result = db.session.execute(text(query)).fetchone()
-            
+
             if result:
                 app.logger.debug("SQL Demo login successful")
                 return jsonify({"message": "Login successful"}), 200
             else:
                 app.logger.debug("SQL Demo login failed")
                 return jsonify({"message": "Invalid credentials"}), 401
-                
+
         except Exception as e:
             app.logger.error(f"Error in SQL demo login: {str(e)}")
             return jsonify({"message": "Login failed"}), 500
 
-    @app.route('/api/sql-demo/employees', methods=['GET'])
-    def get_sql_demo_employees():
-        """Vulnerable endpoint that returns sensitive employee data"""
-        app.logger.debug("SQL Demo employees route accessed")
+    @app.route('/api/sql-demo/login', methods=['POST'])
+    def vulnerable_login():
+        """Vulnerable login endpoint for SQL injection demo"""
+        app.logger.debug("SQL Demo vulnerable login route accessed")
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+
+        app.logger.debug(f"SQL Demo login attempt with username: {username}")
+
         try:
-            employees = Employee.query.all()
-            return jsonify([{
-                'id': emp.employee_id,
-                'username': emp.username,
-                'password': emp.password,
-                'ssh_key': emp.ssh_key,
-                'embarrassing_fact': emp.embarrassing_fact
-            } for emp in employees]), 200
+            # Intentionally vulnerable SQL query
+            query = f"SELECT * FROM admin WHERE username='{username}' AND password='{password}'"
+            app.logger.debug(f"Executing query: {query}")  # Added for debugging
+            result = db.session.execute(text(query)).fetchone()
+
+            if result:
+                app.logger.debug("SQL Demo login successful")
+                return jsonify({"message": "Login successful"}), 200
+            else:
+                app.logger.debug("SQL Demo login failed - No matching credentials")
+                return jsonify({"message": "Invalid credentials"}), 401
+
         except Exception as e:
-            app.logger.error(f"Error fetching SQL demo employees: {str(e)}")
-            return jsonify({"message": "An error occurred"}), 500
-        
+            app.logger.error(f"Error in SQL demo login: {str(e)}")
+            return jsonify({"message": f"Login failed: {str(e)}"}), 500
+
     @app.route('/api/check-auth', methods=['GET'])
     @jwt_required()
     def check_auth():
         """Endpoint to verify JWT token validity"""
         try:
             app.logger.debug(f"Cookies received: {request.cookies}")
-            
+
             current_user_id = get_jwt_identity()
             app.logger.debug(f"JWT identity found: {current_user_id}")
-            
+
             # Convert string ID back to integer for database query
             user = SecureAdmin.query.get(int(current_user_id))
             app.logger.debug(f"User found in DB: {user is not None}")
-            
+
             if user:
                 app.logger.debug(f"Auth check successful for user: {user.username}")
                 return jsonify({
                     "authenticated": True,
                     "username": user.username
                 }), 200
-                
+
             app.logger.debug("Auth check failed: user not found")
             return jsonify({"authenticated": False}), 401
-            
+
         except Exception as e:
             app.logger.error(f"Error checking auth: {str(e)}")
             app.logger.error(f"Request cookies: {request.cookies}")
@@ -257,7 +270,7 @@ def create_app():
                 "authenticated": False,
                 "error": str(e)
             }), 401
-        
+
     @app.after_request
     def after_request(response):
         app.logger.debug(f"Response Headers: {dict(response.headers)}")
@@ -265,6 +278,7 @@ def create_app():
         return response
 
     return app
+
 
 def connect_to_database(retries=5, delay=5):
     for attempt in range(retries):
@@ -276,6 +290,7 @@ def connect_to_database(retries=5, delay=5):
             print(f"Attempt {attempt + 1} failed. Retrying in {delay} seconds...")
             time.sleep(delay)
     raise Exception("Failed to connect to the database after multiple attempts")
+
 
 app = create_app()
 

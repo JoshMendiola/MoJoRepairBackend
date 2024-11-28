@@ -26,21 +26,25 @@ class Admin(db.Model):
     password = db.Column(db.String(120), nullable=False)
     embarrassing_fact = db.Column(db.Text)
 
-    def create_default_admin(app):
-        """Create a default admin user for the SQL injection demo"""
-        with app.app_context():
-            if not Admin.query.filter_by(username='admin').first():
-                admin = Admin(
-                    username='username',
-                    password='password123'  # In a real app, this would be hashed
-                )
-                db.session.add(admin)
-                try:
-                    db.session.commit()
-                    print("Default admin created successfully!")
-                except Exception as e:
-                    print(f"Error creating default admin: {e}")
-                    db.session.rollback()
 
     def __repr__(self):
         return f'<Admin {self.username}>'
+
+
+def create_default_admin(app):
+    """Create a default admin user for the SQL injection demo"""
+    with app.app_context():
+        if not Admin.query.filter_by(username='username').first():  # Changed username
+            admin = Admin(
+                username='username',
+                password='password123',
+                email='demo@test.com',
+                embarrassing_fact='I once ate an entire pizza in one sitting'
+            )
+            db.session.add(admin)
+            try:
+                db.session.commit()
+                print("Default admin created successfully!")
+            except Exception as e:
+                print(f"Error creating default admin: {e}")
+                db.session.rollback()
