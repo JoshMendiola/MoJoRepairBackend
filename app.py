@@ -13,6 +13,7 @@ from sqlalchemy import text
 from extensions import db, bcrypt, jwt
 from models.Admin import SecureAdmin, create_default_admin
 from models.Employee import Employee
+from models.Messages import Message
 
 pymysql.install_as_MySQLdb()
 
@@ -212,6 +213,39 @@ def create_app():
         except Exception as e:
             app.logger.error(f"Error in SQL demo login: {str(e)}")
             return jsonify({"message": f"Login failed: {str(e)}"}), 500
+
+    # VULNERABLE XSS DEMO
+    @app.route('/api/xss-demo/messages', methods=['GET'])
+    def get_all_messages():
+        """Endpoint to get all messages - intentionally vulnerable to XSS/CSS injection"""
+        try:
+            messages = Message.query.order_by(Message.timestamp.desc()).all()
+            return jsonify([{
+                'id': msg.id,
+                'content': msg.content,  # Intentionally not sanitizing
+                'username': msg.username,  # Intentionally not sanitizing
+                'timestamp': msg.timestamp.isoformat()
+            } for msg in messages]), 200
+        except Exception as e:
+            app.logger.error(f"Error fetching messages: {str(e)}")
+            return jsonify({"message": "Failed to fetch messages"}), 500
+
+    @app.route('/api/xss-demo/post', methods=['POST'])
+    def post_message():
+        """Endpoint to post a new message - intentionally vulnerable to XSS/CSS injection"""
+        try:
+            data = request.get_json()
+            message = Message(
+                content=data.get('content'),  # Intentionally not sanitizing
+                username=data.get('username', 'Anonymous')  # Intentionally not sanitizing
+            )
+            db.session.add(message)
+            db.session.commit()
+            return jsonify({"message": "Posted successfully"}), 200
+        except Exception as e:
+            app.logger.error(f"Error posting message: {str(e)}")
+            db.session.rollback()
+            return jsonify({"message": "Failed to post message"}), 500
 
     @app.route('/api/check-auth', methods=['GET'])
     @jwt_required()
