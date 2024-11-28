@@ -199,32 +199,6 @@ def create_app():
         try:
             # Intentionally vulnerable SQL query
             query = f"SELECT * FROM admin WHERE username='{username}' AND password='{password}'"
-            result = db.session.execute(text(query)).fetchone()
-
-            if result:
-                app.logger.debug("SQL Demo login successful")
-                return jsonify({"message": "Login successful"}), 200
-            else:
-                app.logger.debug("SQL Demo login failed")
-                return jsonify({"message": "Invalid credentials"}), 401
-
-        except Exception as e:
-            app.logger.error(f"Error in SQL demo login: {str(e)}")
-            return jsonify({"message": "Login failed"}), 500
-
-    @app.route('/api/sql-demo/login', methods=['POST'])
-    def vulnerable_login():
-        """Vulnerable login endpoint for SQL injection demo"""
-        app.logger.debug("SQL Demo vulnerable login route accessed")
-        data = request.get_json()
-        username = data.get('username')
-        password = data.get('password')
-
-        app.logger.debug(f"SQL Demo login attempt with username: {username}")
-
-        try:
-            # Intentionally vulnerable SQL query
-            query = f"SELECT * FROM admin WHERE username='{username}' AND password='{password}'"
             app.logger.debug(f"Executing query: {query}")  # Added for debugging
             result = db.session.execute(text(query)).fetchone()
 
