@@ -247,6 +247,18 @@ def create_app():
             db.session.rollback()
             return jsonify({"message": "Failed to post message"}), 500
 
+    @app.route('/api/xss-demo/clear', methods=['POST'])
+    def clear_messages():
+        """Endpoint to clear all messages"""
+        try:
+            Message.query.delete()
+            db.session.commit()
+            return jsonify({"message": "All messages cleared"}), 200
+        except Exception as e:
+            app.logger.error(f"Error clearing messages: {str(e)}")
+            db.session.rollback()
+            return jsonify({"message": "Failed to clear messages"}), 500
+
     @app.route('/api/check-auth', methods=['GET'])
     @jwt_required()
     def check_auth():
