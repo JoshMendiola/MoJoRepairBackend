@@ -160,7 +160,7 @@ def create_app():
             app.logger.error(f"Login error: {str(e)}")
             return jsonify({"message": "Login failed"}), 500
 
-    @app.route('/api/employees', methods=['GET'])
+    @app.route('/api/sql-demo/employees', methods=['GET'])
     @jwt_required()
     def get_all_employees():
         """Secure endpoint requiring JWT authentication"""
