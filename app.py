@@ -9,11 +9,13 @@ from datetime import timedelta
 import pymysql
 import logging
 from sqlalchemy import text
+from werkzeug.utils import secure_filename
 
 from extensions import db, bcrypt, jwt
 from models.Admin import SecureAdmin, create_default_admin
 from models.Employee import Employee
 from models.Messages import Message
+from models.Upload import Upload
 
 pymysql.install_as_MySQLdb()
 
@@ -78,6 +80,21 @@ def create_app():
     app.config['JWT_COOKIE_SECURE'] = False
     app.config['JWT_ERROR_MESSAGE_KEY'] = 'message'
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
+
+    UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'sh', 'php'}  # Intentionally allowing .sh and .php
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max-size
+
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+        # Ensure directory is accessible
+        os.chmod(UPLOAD_FOLDER, 0o755)
+
+    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+    app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+    def allowed_file(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
     # Initialize extensions
     db.init_app(app)
@@ -290,6 +307,62 @@ def create_app():
                 "authenticated": False,
                 "error": str(e)
             }), 401
+
+    # VULNERABLE FILE UPLOAD DEMO
+    @app.route('/api/file-demo/upload', methods=['POST'])
+    def upload_file():
+        """File upload endpoint - intentionally vulnerable to RCE through file upload"""
+        app.logger.debug("File Upload Demo upload route accessed")
+
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+
+        try:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+
+                # Save file with original extension (intentionally vulnerable)
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(file_path)
+
+                # Intentionally setting executable permissions
+                os.chmod(file_path, 0o755)
+
+                # Secure database insertion
+                upload = Upload(filename=filename, filepath=file_path)
+                db.session.add(upload)
+                db.session.commit()
+
+                app.logger.debug(f"File uploaded successfully: {filename}")
+                return jsonify({
+                    'message': 'File uploaded successfully',
+                    'filename': filename
+                }), 200
+            else:
+                return jsonify({'error': 'File type not allowed'}), 400
+
+        except Exception as e:
+            app.logger.error(f"Upload error: {str(e)}")
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/file-demo/files', methods=['GET'])
+    def get_uploaded_files():
+        """Endpoint to list all uploaded files"""
+        app.logger.debug("File Upload Demo files route accessed")
+        try:
+            uploads = Upload.query.order_by(Upload.upload_date.desc()).all()
+            return jsonify([{
+                'filename': upload.filename,
+                'upload_date': upload.upload_date.isoformat()
+            } for upload in uploads]), 200
+        except Exception as e:
+            app.logger.error(f"Error fetching files: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
     @app.after_request
     def after_request(response):
