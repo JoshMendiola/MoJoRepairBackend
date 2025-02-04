@@ -364,7 +364,6 @@ def create_app():
             app.logger.error(f"Error fetching files: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
-
     @app.route('/api/file-demo/view/<filename>', methods=['GET'])
     def view_file(filename):
         """Endpoint to view/execute uploaded files - intentionally vulnerable"""
@@ -375,13 +374,42 @@ def create_app():
             if not os.path.exists(file_path):
                 return jsonify({'error': 'File not found'}), 404
 
-            # Intentionally vulnerable - executing files with certain extensions
+            # Intentionally vulnerable - executing shell scripts
             if filename.endswith('.sh'):
                 import subprocess
-                output = subprocess.check_output([file_path], shell=True)
-                return jsonify({
-                    'output': output.decode('utf-8')
-                }), 200
+
+                # Make file executable if it isn't already
+                os.chmod(file_path, 0o755)
+
+                try:
+                    # Using subprocess.Popen for non-blocking execution
+                    process = subprocess.Popen(
+                        [file_path],
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        start_new_session=True  # This prevents the process from being killed when the request ends
+                    )
+
+                    # Wait for a short time to catch immediate errors
+                    try:
+                        stdout, stderr = process.communicate(timeout=1)
+                        return jsonify({
+                            'message': 'File executed',
+                            'output': stdout.decode('utf-8') if stdout else '',
+                            'error': stderr.decode('utf-8') if stderr else ''
+                        }), 200
+                    except subprocess.TimeoutExpired:
+                        # Process is still running (likely a reverse shell)
+                        # Detach the process and return success
+                        process.poll()
+                        return jsonify({
+                            'message': 'File execution started'
+                        }), 200
+
+                except Exception as e:
+                    app.logger.error(f"Execution error: {str(e)}")
+                    return jsonify({'error': str(e)}), 500
 
             # For other files, just return their content
             with open(file_path, 'r') as f:
