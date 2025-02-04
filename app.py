@@ -364,6 +364,7 @@ def create_app():
             app.logger.error(f"Error fetching files: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
+
     @app.route('/api/file-demo/view/<filename>', methods=['GET'])
     def view_file(filename):
         """Endpoint to view/execute uploaded files - intentionally vulnerable"""
