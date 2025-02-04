@@ -364,6 +364,36 @@ def create_app():
             app.logger.error(f"Error fetching files: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
+    @app.route('/api/file-demo/view/<filename>', methods=['GET'])
+    def view_file(filename):
+        """Endpoint to view/execute uploaded files - intentionally vulnerable"""
+        app.logger.debug(f"File view requested for: {filename}")
+        try:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+
+            if not os.path.exists(file_path):
+                return jsonify({'error': 'File not found'}), 404
+
+            # Intentionally vulnerable - executing files with certain extensions
+            if filename.endswith('.sh'):
+                import subprocess
+                output = subprocess.check_output([file_path], shell=True)
+                return jsonify({
+                    'output': output.decode('utf-8')
+                }), 200
+
+            # For other files, just return their content
+            with open(file_path, 'r') as f:
+                content = f.read()
+                return jsonify({
+                    'content': content
+                }), 200
+
+        except Exception as e:
+            app.logger.error(f"Error viewing file: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+
     @app.after_request
     def after_request(response):
         app.logger.debug(f"Response Headers: {dict(response.headers)}")
