@@ -15,7 +15,7 @@ from extensions import db, bcrypt, jwt
 from models.Admin import SecureAdmin, create_default_admin
 from models.Employee import Employee
 from models.Messages import Message
-from models.Upload import Upload
+from models.Uploads import Upload
 
 pymysql.install_as_MySQLdb()
 
