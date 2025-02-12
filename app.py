@@ -8,6 +8,8 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from datetime import timedelta
 import pymysql
 import logging
+import uuid
+
 from sqlalchemy import text
 from werkzeug.utils import secure_filename
 
