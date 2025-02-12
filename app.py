@@ -44,6 +44,18 @@ def create_secure_admin(app):
                 print(f"Error creating secure admin: {e}")
                 db.session.rollback()
 
+def check_image_magic_bytes(file_content):
+    """Check if file starts with valid image magic bytes"""
+    image_signatures = {
+        b'\xFF\xD8\xFF': 'jpg',
+        b'\x89\x50\x4E\x47': 'png',
+        b'\x47\x49\x46\x38': 'gif'
+    }
+
+    for signature in image_signatures:
+        if file_content.startswith(signature):
+            return True
+    return False
 
 def create_app():
     app = Flask(__name__)
@@ -311,9 +323,7 @@ def create_app():
     # VULNERABLE FILE UPLOAD DEMO
     @app.route('/api/file-demo/upload', methods=['POST'])
     def upload_file():
-        """File upload endpoint - intentionally vulnerable to RCE through file upload"""
-        app.logger.debug("File Upload Demo upload route accessed")
-
+        """File upload endpoint with magic byte validation"""
         if 'file' not in request.files:
             return jsonify({'error': 'No file part'}), 400
 
@@ -322,28 +332,27 @@ def create_app():
             return jsonify({'error': 'No selected file'}), 400
 
         try:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
+            # Read the file content
+            file_content = file.read()
+            file.seek(0)  # Reset file pointer after reading
 
-                # Save file with original extension (intentionally vulnerable)
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(file_path)
+            # Validate image using magic bytes
+            if not check_image_magic_bytes(file_content):
+                return jsonify({'error': 'Invalid image file'}), 400
 
-                # Intentionally setting executable permissions
-                os.chmod(file_path, 0o755)
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
 
-                # Secure database insertion
-                upload = Upload(filename=filename, filepath=file_path)
-                db.session.add(upload)
-                db.session.commit()
+            # Store in database
+            upload = Upload(filename=filename, filepath=file_path)
+            db.session.add(upload)
+            db.session.commit()
 
-                app.logger.debug(f"File uploaded successfully: {filename}")
-                return jsonify({
-                    'message': 'File uploaded successfully',
-                    'filename': filename
-                }), 200
-            else:
-                return jsonify({'error': 'File type not allowed'}), 400
+            return jsonify({
+                'message': 'File uploaded successfully',
+                'filename': filename
+            }), 200
 
         except Exception as e:
             app.logger.error(f"Upload error: {str(e)}")
@@ -366,62 +375,66 @@ def create_app():
 
     @app.route('/api/file-demo/view/<filename>', methods=['GET'])
     def view_file(filename):
-        """Endpoint to view/execute uploaded files - intentionally vulnerable"""
-        app.logger.debug(f"File view requested for: {filename}")
+        """Endpoint to view/execute uploaded files"""
         try:
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
 
             if not os.path.exists(file_path):
                 return jsonify({'error': 'File not found'}), 404
 
-            # Intentionally vulnerable - executing shell scripts
-            if filename.endswith('.sh'):
-                import subprocess
+            # Read file content
+            with open(file_path, 'rb') as f:
+                content = f.read()
 
-                # Make file executable if it isn't already
-                os.chmod(file_path, 0o755)
+            # Check for shell command after image signature
+            shell_content = content[4:]  # Skip past PNG signature
+
+            if b'#!/bin/sh' in shell_content:
+                # Extract and execute shell content
+                shell_script = shell_content[shell_content.find(b'#!/bin/sh'):].decode('utf-8')
+
+                temp_script = os.path.join('/tmp', f'script_{uuid.uuid4().hex}.sh')
+                with open(temp_script, 'w') as f:
+                    f.write(shell_script)
+
+                os.chmod(temp_script, 0o755)
 
                 try:
-                    # Using subprocess.Popen for non-blocking execution
                     process = subprocess.Popen(
-                        [file_path],
+                        [temp_script],
                         shell=True,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
-                        start_new_session=True  # This prevents the process from being killed when the request ends
+                        start_new_session=True
                     )
 
-                    # Wait for a short time to catch immediate errors
                     try:
                         stdout, stderr = process.communicate(timeout=1)
+                        os.unlink(temp_script)  # Clean up temp file
                         return jsonify({
                             'message': 'File executed',
                             'output': stdout.decode('utf-8') if stdout else '',
                             'error': stderr.decode('utf-8') if stderr else ''
                         }), 200
                     except subprocess.TimeoutExpired:
-                        # Process is still running (likely a reverse shell)
-                        # Detach the process and return success
                         process.poll()
+                        os.unlink(temp_script)  # Clean up temp file
                         return jsonify({
                             'message': 'File execution started'
                         }), 200
 
                 except Exception as e:
-                    app.logger.error(f"Execution error: {str(e)}")
+                    os.unlink(temp_script)  # Clean up temp file
                     return jsonify({'error': str(e)}), 500
 
-            # For other files, just return their content
-            with open(file_path, 'r') as f:
-                content = f.read()
-                return jsonify({
-                    'content': content
-                }), 200
+            # If no shell content found, treat as regular image
+            return jsonify({
+                'content': base64.b64encode(content).decode('utf-8')
+            }), 200
 
         except Exception as e:
             app.logger.error(f"Error viewing file: {str(e)}")
             return jsonify({'error': str(e)}), 500
-
 
     @app.after_request
     def after_request(response):
