@@ -1,18 +1,28 @@
+# Standard library imports
+import base64
+import logging
 import os
-from dotenv import load_dotenv
+import subprocess
 import time
+import uuid
+from datetime import timedelta
+
+# Third-party imports
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, make_response
 from flask_bcrypt import check_password_hash
 from flask_cors import CORS
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, set_access_cookies
-from datetime import timedelta
+from flask_jwt_extended import (
+    create_access_token,
+    jwt_required,
+    get_jwt_identity,
+    set_access_cookies
+)
 import pymysql
-import logging
-import uuid
-
 from sqlalchemy import text
 from werkzeug.utils import secure_filename
 
+# Local application imports
 from extensions import db, bcrypt, jwt
 from models.Admin import SecureAdmin, create_default_admin
 from models.Employee import Employee
