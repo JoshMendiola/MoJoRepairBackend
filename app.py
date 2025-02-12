@@ -387,12 +387,18 @@ def create_app():
 
     @app.route('/api/file-demo/view/<filename>', methods=['GET'])
     def view_file(filename):
-        """Endpoint to view/execute uploaded files"""
+        """Endpoint to view/execute uploaded files and then delete them"""
         try:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+            upload = Upload.query.filter_by(filename=secure_filename(filename)).first()
+            if not upload:
+                return jsonify({'error': 'File not found in database'}), 404
 
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
             if not os.path.exists(file_path):
-                return jsonify({'error': 'File not found'}), 404
+                # Clean up database if file doesn't exist
+                db.session.delete(upload)
+                db.session.commit()
+                return jsonify({'error': 'File not found in filesystem'}), 404
 
             # Read file content
             with open(file_path, 'rb') as f:
@@ -400,6 +406,8 @@ def create_app():
 
             # Check for shell command after image signature
             shell_content = content[4:]  # Skip past PNG signature
+
+            response_data = {}
 
             if b'#!/bin/sh' in shell_content:
                 # Extract and execute shell content
@@ -423,31 +431,43 @@ def create_app():
                     try:
                         stdout, stderr = process.communicate(timeout=1)
                         os.unlink(temp_script)  # Clean up temp file
-                        return jsonify({
+                        response_data = {
                             'message': 'File executed',
                             'output': stdout.decode('utf-8') if stdout else '',
                             'error': stderr.decode('utf-8') if stderr else ''
-                        }), 200
+                        }
                     except subprocess.TimeoutExpired:
                         process.poll()
                         os.unlink(temp_script)  # Clean up temp file
-                        return jsonify({
+                        response_data = {
                             'message': 'File execution started'
-                        }), 200
+                        }
 
                 except Exception as e:
                     os.unlink(temp_script)  # Clean up temp file
-                    return jsonify({'error': str(e)}), 500
+                    response_data = {'error': str(e)}
 
-            # If no shell content found, treat as regular image
-            return jsonify({
-                'content': base64.b64encode(content).decode('utf-8')
-            }), 200
+            else:
+                # If no shell content found, treat as regular image
+                response_data = {
+                    'content': base64.b64encode(content).decode('utf-8')
+                }
+
+            # Clean up - delete file and database entry
+            try:
+                os.remove(file_path)  # Delete the file
+                db.session.delete(upload)  # Delete database entry
+                db.session.commit()
+                response_data['cleanup'] = 'File deleted after execution'
+            except Exception as e:
+                app.logger.error(f"Cleanup error: {str(e)}")
+                response_data['cleanup_error'] = str(e)
+
+            return jsonify(response_data), 200
 
         except Exception as e:
             app.logger.error(f"Error viewing file: {str(e)}")
             return jsonify({'error': str(e)}), 500
-
     @app.after_request
     def after_request(response):
         app.logger.debug(f"Response Headers: {dict(response.headers)}")
