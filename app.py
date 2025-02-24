@@ -255,6 +255,33 @@ def create_app():
             app.logger.error(f"Error in SQL demo login: {str(e)}")
             return jsonify({"message": f"Login failed: {str(e)}"}), 500
 
+    # SQL INJECTION FIX CODE
+    # @app.route('/api/sql-demo/login', methods=['POST'])
+    # def secure_login():
+    #     """Secure login endpoint using prepared statement"""
+    #     app.logger.debug("SQL Demo secure login route accessed")
+    #     data = request.get_json()
+    #     username = data.get('username')
+    #     password = data.get('password')
+    #
+    #     app.logger.debug(f"SQL Demo login attempt with username: {username}")
+    #
+    #     try:
+    #         # Secure SQL query using prepared statement
+    #         query = text("SELECT * FROM admin WHERE username = :username AND password = :password")
+    #         result = db.session.execute(query, {"username": username, "password": password}).fetchone()
+    #
+    #         if result:
+    #             app.logger.debug("SQL Demo login successful")
+    #             return jsonify({"message": "Login successful"}), 200
+    #         else:
+    #             app.logger.debug("SQL Demo login failed - No matching credentials")
+    #             return jsonify({"message": "Invalid credentials"}), 401
+    #
+    #     except Exception as e:
+    #         app.logger.error(f"Error in SQL demo login: {str(e)}")
+    #         return jsonify({"message": f"Login failed: {str(e)}"}), 500
+
     # VULNERABLE XSS DEMO
     @app.route('/api/xss-demo/messages', methods=['GET'])
     def get_all_messages():
